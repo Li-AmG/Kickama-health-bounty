@@ -2,19 +2,19 @@
   "generated_at": "2026-06-21T02:41:09.149095+00:00",
   "commit": "d0080945",
   "diagnostic_logd": [
-    "diagnostic\\build-d0080945-part001.logd",
-    "diagnostic\\build-d0080945-part002.logd",
-    "diagnostic\\build-d0080945-part003.logd",
-    "diagnostic\\build-d0080945-part004.logd",
-    "diagnostic\\build-d0080945-part005.logd",
-    "diagnostic\\build-d0080945-part006.logd"
+    "diagnostic/build-d0080945-part001.logd",
+    "diagnostic/build-d0080945-part002.logd",
+    "diagnostic/build-d0080945-part003.logd",
+    "diagnostic/build-d0080945-part004.logd",
+    "diagnostic/build-d0080945-part005.logd",
+    "diagnostic/build-d0080945-part006.logd"
   ],
   "diagnostic_logd_error": null,
   "message_blocker": null,
   "chunked": true,
   "chunk_size_bytes": 41943040,
   "password": "37ec1e3355def2ff672d",
-  "decrypt_command": "encryptly unpack diagnostic\\build-d0080945.logd <outdir> --password 37ec1e3355def2ff672d",
+  "decrypt_command": "encryptly unpack diagnostic/build-d0080945.logd <outdir> --password 37ec1e3355def2ff672d",
   "total_modules": 1,
   "passed": 0,
   "failed": 1,
@@ -27,5 +27,5 @@
       "output": "Command not found: [WinError 2] \u7cfb\u7edf\u627e\u4e0d\u5230\u6307\u5b9a\u7684\u6587\u4ef6\u3002"
     }
   ],
-  "pr_note": "Include the encrypted diagnostic logd artifact(s): diagnostic\\build-d0080945-part001.logd, diagnostic\\build-d0080945-part002.logd, diagnostic\\build-d0080945-part003.logd, diagnostic\\build-d0080945-part004.logd, diagnostic\\build-d0080945-part005.logd, diagnostic\\build-d0080945-part006.logd. The encrypted .logd is the required diagnostic content for PR review; this JSON file is metadata. Maintainers may ask you to remove these diagnostic artifacts before merging."
+  "pr_note": "Include the encrypted diagnostic logd artifact(s): diagnostic/build-d0080945-part001.logd, diagnostic/build-d0080945-part002.logd, diagnostic/build-d0080945-part003.logd, diagnostic/build-d0080945-part004.logd, diagnostic/build-d0080945-part005.logd, diagnostic/build-d0080945-part006.logd. The encrypted .logd is the required diagnostic content for PR review; this JSON file is metadata. Maintainers may ask you to remove these diagnostic artifacts before merging."
 }
