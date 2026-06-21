@@ -106,6 +106,11 @@ def split_diagnostic_logd(logd_path: Path, chunk_size: int = DIAGNOSTIC_CHUNK_SI
     return chunks
 
 
+def repo_rel(path: Path) -> str:
+    """Return a repository-relative path using GitHub-compatible separators."""
+    return path.relative_to(ROOT).as_posix()
+
+
 @dataclass
 class Module:
     name: str
@@ -540,7 +545,7 @@ def build_diagnostic_report(
 
     decrypt_target = logd_relpaths[0] if logd_relpaths and len(logd_relpaths) == 1 else None
     if logd_relpaths and len(logd_relpaths) > 1:
-        decrypt_target = str((DIAGNOSTIC_DIR / f"build-{commit_id}.logd").relative_to(ROOT))
+        decrypt_target = repo_rel(DIAGNOSTIC_DIR / f"build-{commit_id}.logd")
 
     report = {
         "generated_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
@@ -579,7 +584,7 @@ def build_diagnostic_report(
 
 def write_diagnostic_report(metadata_path: Path, report: dict) -> None:
     metadata_path.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
-    print(f"    {color('✓', Colors.GREEN)} {metadata_path.relative_to(ROOT)} created")
+    print(f"    {color('✓', Colors.GREEN)} {repo_rel(metadata_path)} created")
 
 
 def commit_diagnostic_artifacts(paths: list[Path], commit_id: str) -> bool:
@@ -589,7 +594,7 @@ def commit_diagnostic_artifacts(paths: list[Path], commit_id: str) -> bool:
         print(f"    {color('✗', Colors.RED)} No diagnostic artifacts found to commit")
         return False
 
-    relpaths = [str(path.relative_to(ROOT)) for path in existing]
+    relpaths = [repo_rel(path) for path in existing]
     status = run_text_process(
         ["git", "status", "--porcelain", "--", *relpaths],
         cwd=str(ROOT),
@@ -636,7 +641,7 @@ def generate_logd(
     verbose: bool = False,
 ) -> bool:
     logd_path, metadata_path, commit_id = diagnostic_paths_for_commit()
-    display_logd = logd_path.relative_to(ROOT)
+    display_logd = repo_rel(logd_path)
     print(f"\n  {color('▸', Colors.CYAN)} Finalizing diagnostics for {color(str(display_logd), Colors.BOLD)}...")
 
     # Always write the JSON report first. The encrypted .logd is useful, but the
@@ -723,7 +728,7 @@ def generate_logd(
         if sr.returncode != 0:
             error = sr.stderr.strip() or sr.stdout.strip() or "encryptly pack failed"
             print(
-                f"    {color('✗', Colors.RED)} {logd_path.relative_to(ROOT)} creation failed: "
+                f"    {color('✗', Colors.RED)} {repo_rel(logd_path)} creation failed: "
                 f"{error}"
             )
             if logd_path.exists():
@@ -743,8 +748,8 @@ def generate_logd(
 
         safe_pw = sr.stdout.strip()
         logd_files = split_diagnostic_logd(logd_path)
-        logd_relpaths = [str(path.relative_to(ROOT)) for path in logd_files]
-        decrypt_target = logd_relpaths[0] if len(logd_relpaths) == 1 else str(logd_path.relative_to(ROOT))
+        logd_relpaths = [repo_rel(path) for path in logd_files]
+        decrypt_target = logd_relpaths[0] if len(logd_relpaths) == 1 else repo_rel(logd_path)
         write_diagnostic_report(
             metadata_path,
             build_diagnostic_report(
@@ -759,7 +764,7 @@ def generate_logd(
         for path in logd_files:
             size_kb = path.stat().st_size / 1024.0
             print(
-                f"    {color('✓', Colors.GREEN)} {path.relative_to(ROOT)} created "
+                f"    {color('✓', Colors.GREEN)} {repo_rel(path)} created "
                 f"({size_kb:.1f} KiB)"
             )
         if len(logd_files) > 1:
