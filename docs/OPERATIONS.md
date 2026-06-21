@@ -37,6 +37,21 @@ The health check returns a 200 OK response with a JSON body:
 }
 ```
 
+The local `tools/health_check.py` validator treats service health endpoints as
+healthy only when all of the following are true:
+
+- The HTTP status code is `200`.
+- The response body is not empty.
+- `/health` responses use `Content-Type: application/json`.
+- The JSON response parses as an object and includes a `status` field.
+- The `status` value is one of `ok`, `healthy`, `up`, `pass`, or `passing`,
+  case-insensitive.
+
+Empty responses, malformed JSON, unexpected content types, non-200 HTTP
+responses, timeouts, and explicit unhealthy status values are reported as
+critical failures. The frontend root page is the only configured non-JSON HTTP
+check, and it must still return a non-empty `200` response.
+
 ### Prometheus Metrics
 
 Each service exposes Prometheus metrics at `/metrics` on the same port as the
