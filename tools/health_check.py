@@ -46,10 +46,10 @@ from typing import Any, Dict, List, Optional, Tuple
 # ---------------------------------------------------------------------------
 
 SERVICES = {
-    "backend": {"host": "localhost", "port": 8080, "path": "/health", "timeout": 5},
-    "market": {"host": "localhost", "port": 8081, "path": "/health", "timeout": 5},
-    "frailbox": {"host": "localhost", "port": 8082, "path": "/health", "timeout": 10},
-    "frontend": {"host": "localhost", "port": 3000, "path": "/", "timeout": 5},
+    "backend": {"host": "localhost", "port": 8080, "path": "/health", "timeout": 5, "expect_json": True},
+    "market": {"host": "localhost", "port": 8081, "path": "/health", "timeout": 5, "expect_json": True},
+    "frailbox": {"host": "localhost", "port": 8082, "path": "/health", "timeout": 10, "expect_json": True},
+    "frontend": {"host": "localhost", "port": 3000, "path": "/", "timeout": 5, "expect_json": False},
 }
 
 INFRASTRUCTURE = {
@@ -68,27 +68,80 @@ MEMORY_THRESHOLD_CRITICAL = 90
 # CHECK FUNCTIONS
 # ---------------------------------------------------------------------------
 
-def check_http_service(host: str, port: int, path: str, timeout: int) -> Tuple[str, str, int]:
+HEALTHY_STATUS_VALUES = {"ok", "healthy", "up", "pass", "passing"}
+
+
+def validate_health_body(
+    body: str,
+    content_type: str,
+    expect_json: bool,
+    healthy_statuses: Optional[set[str]] = None,
+) -> Tuple[str, str]:
+    stripped = body.strip()
+    if not stripped:
+        return "CRITICAL", "empty response body"
+
+    if not expect_json:
+        return "OK", "non-empty response body"
+
+    if "application/json" not in content_type.lower():
+        found = content_type or "<missing>"
+        return "CRITICAL", f"unexpected content type {found!r}; expected application/json"
+
+    try:
+        payload = json.loads(stripped)
+    except json.JSONDecodeError as exc:
+        return "CRITICAL", f"invalid JSON response at byte {exc.pos}: {exc.msg}"
+
+    if not isinstance(payload, dict):
+        return "CRITICAL", "JSON health response must be an object"
+
+    raw_status = payload.get("status")
+    if raw_status is None:
+        return "CRITICAL", "JSON health response missing required 'status' field"
+
+    normalized_status = str(raw_status).strip().lower()
+    allowed = healthy_statuses or HEALTHY_STATUS_VALUES
+    if normalized_status not in allowed:
+        return "CRITICAL", f"reported health status {raw_status!r} is not healthy"
+
+    return "OK", f"status={normalized_status}"
+
+
+def check_http_service(
+    host: str,
+    port: int,
+    path: str,
+    timeout: int,
+    expect_json: bool = False,
+    healthy_statuses: Optional[set[str]] = None,
+) -> Tuple[str, str, int]:
     import http.client
     try:
         conn = http.client.HTTPConnection(host, port, timeout=timeout)
         conn.request("GET", path)
         resp = conn.getresponse()
         status = resp.status
+        content_type = resp.getheader("Content-Type", "")
         body = resp.read().decode("utf-8", errors="replace")[:200]
         conn.close()
 
-        if status == 200:
-            result = "OK"
-            detail = f"HTTP {status}"
-        elif status < 500:
-            result = "WARNING"
-            detail = f"HTTP {status}: {body[:100]}"
-        else:
-            result = "CRITICAL"
-            detail = f"HTTP {status}: {body[:100]}"
+        if status != 200:
+            return "CRITICAL", f"HTTP {status}: {body[:100]}", status
+
+        result, validation_detail = validate_health_body(
+            body,
+            content_type,
+            expect_json=expect_json,
+            healthy_statuses=healthy_statuses,
+        )
+        detail = f"HTTP {status}: {validation_detail}"
 
         return result, detail, status
+    except TimeoutError:
+        return "CRITICAL", f"HTTP response timeout ({timeout}s)", 0
+    except socket.timeout:
+        return "CRITICAL", f"HTTP response timeout ({timeout}s)", 0
     except Exception as e:
         return "CRITICAL", str(e), 0
 
@@ -217,7 +270,11 @@ def run_health_checks(service: Optional[str] = None, json_output: bool = False) 
         if service and name != service:
             continue
         status, detail, code = check_http_service(
-            config["host"], config["port"], config["path"], config["timeout"]
+            config["host"],
+            config["port"],
+            config["path"],
+            config["timeout"],
+            expect_json=bool(config.get("expect_json", False)),
         )
         results["services"][name] = {
             "status": status,
